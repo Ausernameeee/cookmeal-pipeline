@@ -15,7 +15,7 @@ YouTube URL
 
 之前用 [FineSub](https://github.com/caca2331/finesub) 半手动烤肉，但它的 ASR 核心是 Windows-only 的 CTranslate2 补丁版，Linux 上跑不了。于是按同一套工作流（下载 → 转写 → 翻译 → 双语压制）在 Linux 上重写了一遍，纯 CPU 可跑。
 
-**主要灵感来源：FineSub（caca2331/finesub）** —— 感谢它验证了这条工作流。
+**主要灵感来源：[FineSub](https://github.com/caca2331/finesub)（作者 [@caca2331](https://github.com/caca2331)）** —— 感谢它验证了这条工作流。本仓库代码全部重写，与 FineSub 无代码继承关系。
 
 ## 快速开始
 
