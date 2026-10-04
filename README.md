@@ -47,10 +47,11 @@ export GEMINI_API_KEY="你的 key"   # 免费申请见下
 
 ## Roadmap
 
-- B站自动投稿（biliup，已做过 dry-run 调研）
-- 人声分离 / 说话人区分
-- 时间轴稳定化
-- 术语表（专有名词统一翻译）
+- [x] 一键 pipeline：下载 → ASR → 翻译 → 双语压制
+- [ ] B站自动投稿（biliup，仅做过 dry-run 调研，还没跑通）
+- [ ] 人声分离 / 说话人区分
+- [ ] 时间轴稳定化
+- [ ] 术语表（专有名词统一翻译）
 
 ## License
 
