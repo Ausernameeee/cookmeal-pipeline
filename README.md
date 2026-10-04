@@ -45,10 +45,36 @@ export GEMINI_API_KEY="你的 key"   # 免费申请见下
 
 这套逻辑是经过三轮实际烤肉反馈打磨出来的。实测：5.5 分钟的 TED-Ed 视频，42 段原始分段 → 67 段可读字幕，全程约 2 分钟（CPU），翻译走免费额度，基本零成本。
 
+## B站自动投稿
+
+`bili_upload.py` 直接调 B站 web API 投稿：preupload 拿上传地址 → upos 分片上传 → `x/vu/web/add` 提交，已实测投稿成功。cookie 从 `BILIBILI_COOKIE_FILE` 环境变量指定的文件读取，文件里写一行：
+
+```
+BILIBILI_COOKIE="SESSDATA=...; bili_jct=...; DedeUserID=..."
+```
+
+（600 权限，别进仓库。）
+
+```bash
+python3 bili_upload.py <mp4> --title "标题" --desc-file desc.txt \
+    --tid 124 --tag "tag1,tag2" --source "https://原视频链接"
+# 分片传完了但提交失败时，只重提交不重传：
+python3 bili_upload.py <mp4> ... --skip-upload <filename>
+```
+
+### 踩过的坑（2026-10-05 实测）
+
+- **preupload 参数必须照抄 [biliup](https://github.com/biliup/biliup-rs)**：`r=upos`、`profile=ugcupos/bup`、`ssl=0`、`version=2.11.0`、`build=2110000`，外加 `name`（文件名）和 `size`（字节数）。返回的 auth 签名和这套参数绑定，`profile` 写错就 403/400。
+- **分片上传三步走同一个 URL**：`POST {endpoint}/{upos_uri 去掉 upos:// 前缀}?uploads&output=json` 初始化（带 `X-Upos-Auth` 头）→ `PUT` 同一 URL 逐片上传 → `POST` 同一 URL 收尾。分片参数是 camelCase（`uploadId`、`partNumber`、`chunk`、`chunks`、`size`、`start`、`end`、`total`），写成 snake_case 就不认。
+- **收尾 body 是 JSON**：`{"parts": [{"partNumber": n, "eTag": "etag"}, ...]}`，`eTag` 实测填任意值可过。
+- **提交必须 JSON body**：`POST https://member.bilibili.com/x/vu/web/add?t=<毫秒时间戳>&csrf=<bili_jct>`，用表单编码提交会被打回 `21001 参数错误`。
+- **简介有字数限制**：超长会被打回 `21010`，1300 字左右实测可过。
+- **默认按"转载"投稿**（`copyright=2`），记得填 `--source` 原视频链接；自制视频把 `copyright` 改成 1。
+
 ## Roadmap
 
 - [x] 一键 pipeline：下载 → ASR → 翻译 → 双语压制
-- [ ] B站自动投稿（biliup，仅做过 dry-run 调研，还没跑通）
+- [x] B站自动投稿（`bili_upload.py`：preupload → upos 分片上传 → web API 提交，已跑通）
 - [ ] 人声分离 / 说话人区分
 - [ ] 时间轴稳定化
 - [ ] 术语表（专有名词统一翻译）
