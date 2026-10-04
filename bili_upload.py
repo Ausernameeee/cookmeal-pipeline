@@ -16,6 +16,8 @@ Protocol reference: biliup-rs crates/biliup/src/uploader/line/upos.rs
 Usage:
     python3 bili_upload.py <mp4> --title T --desc-file D --tid TID --tag TAGS --source URL
     python3 bili_upload.py <mp4> ... --skip-upload <filename>   # reuse uploaded file
+    python3 bili_upload.py <mp4> ... --cover-file cover.jpg     # local cover image
+    python3 bili_upload.py <mp4> ... --youtube-url URL          # auto-fetch original YouTube thumbnail as cover
 """
 import argparse
 import json
@@ -120,14 +122,63 @@ def do_upload(sess, mp4_path, name, size):
     return filename
 
 
+def upload_cover(sess, ck, image_path):
+    """Upload an image via cover/up API, return the cover URL."""
+    import base64
+    with open(image_path, "rb") as f:
+        b64 = base64.b64encode(f.read()).decode()
+    ext = image_path.rsplit(".", 1)[-1].lower()
+    mime = "image/jpeg" if ext in ("jpg", "jpeg") else f"image/{ext}"
+    r = sess.post("https://member.bilibili.com/x/vu/web/cover/up",
+                  data={"csrf": ck["bili_jct"],
+                        "cover": f"data:{mime};base64," + b64},
+                  timeout=60)
+    res = r.json()
+    assert res.get("code") == 0, f"cover up failed: {res}"
+    url = res["data"]["url"]
+    print(f"[up] cover uploaded: {url}", flush=True)
+    return url
+
+
+def fetch_youtube_thumb(youtube_url, dest="/tmp/bili_thumb.jpg"):
+    """Download the original YouTube thumbnail (maxresdefault, fallback hqdefault)."""
+    m = re.search(r"[?&]v=([\w-]{11})|youtu\.be/([\w-]{11})", youtube_url)
+    vid = (m.group(1) or m.group(2)) if m else None
+    if not vid:
+        print("[up] WARN: could not parse video id from youtube url", flush=True)
+        return None
+    for q in ("maxresdefault", "hqdefault"):
+        try:
+            r = requests.get(f"https://i.ytimg.com/vi/{vid}/{q}.jpg", timeout=30)
+        except Exception as e:
+            print(f"[up] thumb {q} fetch failed: {e}", flush=True)
+            continue
+        if r.status_code == 200 and len(r.content) > 10000:
+            with open(dest, "wb") as f:
+                f.write(r.content)
+            print(f"[up] fetched youtube thumbnail ({q})", flush=True)
+            return dest
+    print("[up] WARN: no usable youtube thumbnail", flush=True)
+    return None
+
+
 def do_submit(sess, ck, args, filename):
     with open(args.desc_file, encoding="utf-8") as f:
         desc = f.read()
+
+    # cover: explicit file, or auto-fetch original YouTube thumbnail
+    cover_url = ""
+    cover_file = args.cover_file
+    if not cover_file and args.youtube_url:
+        cover_file = fetch_youtube_thumb(args.youtube_url)
+    if cover_file:
+        cover_url = upload_cover(sess, ck, cover_file)
+
     studio = {
         "copyright": 2,  # 转载
         "source": args.source,
         "tid": args.tid,
-        "cover": "",
+        "cover": cover_url,
         "title": args.title,
         "desc_format_id": 0,
         "desc": desc,
@@ -167,6 +218,10 @@ def main():
     ap.add_argument("--source", required=True)
     ap.add_argument("--skip-upload", default="",
                     help="reuse an already-uploaded filename, skip chunk upload")
+    ap.add_argument("--cover-file", default="",
+                    help="local image to use as video cover")
+    ap.add_argument("--youtube-url", default="",
+                    help="fetch the original YouTube thumbnail as cover")
     args = ap.parse_args()
 
     ck = load_cookie()

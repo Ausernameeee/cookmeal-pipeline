@@ -60,6 +60,8 @@ python3 bili_upload.py <mp4> --title "标题" --desc-file desc.txt \
     --tid 124 --tag "tag1,tag2" --source "https://原视频链接"
 # 分片传完了但提交失败时，只重提交不重传：
 python3 bili_upload.py <mp4> ... --skip-upload <filename>
+# 封面：--cover-file 指定本地图片，或 --youtube-url 自动抓原 YouTube 封面：
+python3 bili_upload.py <mp4> ... --youtube-url "https://www.youtube.com/watch?v=xxxx"
 ```
 
 ### 踩过的坑（2026-10-05 实测）
@@ -69,6 +71,7 @@ python3 bili_upload.py <mp4> ... --skip-upload <filename>
 - **收尾 body 是 JSON**：`{"parts": [{"partNumber": n, "eTag": "etag"}, ...]}`，`eTag` 实测填任意值可过。
 - **提交必须 JSON body**：`POST https://member.bilibili.com/x/vu/web/add?t=<毫秒时间戳>&csrf=<bili_jct>`，用表单编码提交会被打回 `21001 参数错误`。
 - **简介有字数限制**：超长会被打回 `21010`，1300 字左右实测可过。
+- **封面**：`--cover-file` 传本地图片，或 `--youtube-url` 自动抓原 YouTube 封面（经 `x/vu/web/cover/up` 上传拿 URL 后填入投稿）；给已投稿的视频换封面走 `x/vu/web/edit`，注意会触发重新审核。
 - **默认按"转载"投稿**（`copyright=2`），记得填 `--source` 原视频链接；自制视频把 `copyright` 改成 1。
 
 ## Roadmap
